@@ -4,6 +4,7 @@
 <!ENTITY pandocMiddle   PUBLIC '' 'DLEP_CW.xml'>
 <!ENTITY pandocBack     PUBLIC '' 'appendices.xml'>
 <!ENTITY RFC.2119       PUBLIC '' 'http://xml.resource.org/public/rfc/bibxml/reference.RFC.2119.xml'>
+<!ENTITY RFC.2475       PUBLIC '' 'http://xml.resource.org/public/rfc/bibxml/reference.RFC.2475.xml'>
 ]>
 
 <?rfc toc="yes"?>
@@ -27,6 +28,40 @@
 					<country>USA</country>
 				</postal>
 				<email>sratliff@idirect.net</email>
+			</address>
+		</author>
+		<author fullname="Bow-Nan Cheng" initials="B." surname="Cheng">
+			<organization>Lincoln Laboratory 
+                                      Massachusetts Institute of Technology</organization>
+			<address>
+				<postal>
+					<street>244 Wood Street</street>
+					<city>Lexington</city>
+					<region>MA</region>
+					<code>02420-9108</code>
+					<country>USA</country>
+				</postal>
+				<email>bcheng@ll.mit.edu</email>
+			</address>
+		</author>
+		<author fullname="David Wiggins" initials="D." surname="Wiggins">
+			<organization>Lincoln Laboratory 
+                                      Massachusetts Institute of Technology</organization>
+			<address>
+				<postal>
+					<street>244 Wood Street</street>
+					<city>Lexington</city>
+					<region>MA</region>
+					<code>02420-9108</code>
+					<country>USA</country>
+				</postal>
+				<email>David.Wiggins@ll.mit.edu</email>
+			</address>
+		</author>
+		<author fullname="Lou Berger" initials="L." surname="Berger">
+			<organization>LabN Consulting, L.L.C.</organization>
+			<address>
+				<email>lberger@labn.net</email>
 			</address>
 		</author>
 		<date />
@@ -63,6 +98,9 @@
 			</front>
 			<seriesInfo value="IETF draft" name="draft-ietf-manet-dlep-25"/>
 			</reference>
+		</references>
+		<references title=Informative References">
+			&RFC.2475;
 		</references>
     	&pandocBack;
 	</back>

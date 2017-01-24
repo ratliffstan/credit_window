@@ -1,9 +1,9 @@
 #  Introduction    
 
-The Dynamic Link Event Protocol (DLEP) provides for the exchange of 
-link related control information between DLEP peers. DLEP peers are 
-comprised as a moddem and a router. DLEP defines a base set of 
-mechanisms as well as support for possible extensions.
+The Dynamic Link Event Protocol (DLEP is defined in ([I-D.ietf-manet-dlep](#DLEP)).
+It provides for the exchange of link related control information between 
+DLEP peers. DLEP peers are comprised as a moddem and a router. DLEP 
+defines a base set of mechanisms as well as support for possible extensions.
 
 The base DLEP specification does not include any flow control capability.
 However, in the world of radio-based networking, there are modems that need
@@ -25,7 +25,7 @@ different window sizes for destinations and/or traffic classification
 queues accessed across the RF network. 
 
 This document defines a DLEP extension which provides flow control 
-for DiffServ traffic sent from router or modem. Flow control 
+for DiffServ [RFC2475](#RFC2475) traffic sent from router or modem. Flow control 
 is provided for multiple Differentiated Services Codepoints (DSCPs), 
 which are grouped into sets of logical queues. 
 
@@ -56,35 +56,38 @@ on a window - that is, on an MRW, the modem is responsible for
 granting credits to the router, allowing it (the router) to send 
 data plane traffic to the modem. Likewise, the router is responsible 
 for granting credits on the RRW, which allows the modem to send 
-data plane traffic to the router. 
+data plane traffic to the router. This document refers to the 
+receiver on the window as the 'Window Manager'.
 
 Credits represent the number of data plane octets, or an increment in the 
 number of data plane octets, that can be sent on a given window at the 
 MAC layer, including MAC headers, to the receiver. 
 
-When the extension is to be used, the receiver (either modem or router) 
-on the window passes to the peer its known DSCPs, if any. DSCPs are 
-grouped by logical queues, each of which are given a logical queue 
-index. The queue index zero (0) is special and is used for any DSCP value,
-including 0, which is not otherwise identified by the receiver. The 
-receiver also provides a size, in bytes, of the logical queue for 
+When the extension is to be used, the Window Manager passes to the 
+peer its known DSCPs, if any. DSCPs are grouped by logical queues, 
+each of which are given a logical queue index. The queue index 
+zero (0) is special and is used for any DSCP value, including 0, 
+which is not otherwise identified by the receiver. The 
+Window Manager also provides a size, in bytes, of the logical queue for 
 informative, and potential future, uses. Currently, only the DSCP to 
 logical queue index value mapping is used in flow control operation. 
 
 The Credit extension supports credit based flow control on a per
 MAC address destination, per queue basis.
 
-DLEP receivers provide the initial size of the associated "Credit 
+Window Managers provide the initial size of the associated "Credit 
 Window" i.e., the amount of data in octets that may be sent to the 
 receiver, when a DLEP MAC destination becomes available. Increments
 to the available credits are supplied on an as-needed bases, based on 
-heuristics implemented in the receiver. The specifics of the 
-algorithm(s) used in a receiver to determine whether to issue an 
+heuristics implemented in the Window Manager. The specifics of the 
+algorithm(s) used in a Window Manager to determine whether to issue an 
 increment, or to determine the size of an increment, are out of scope
 for this specification. 
 
-The "Credit Increments" (i.e., incremental credit grants) are provided using
-new "Credit Control" messages.
+All of the Credit information (e.g., Credit Increments, Window Start 
+and Stop, and Window Status) are transmitted between DLEP peers using
+the new "Credit Control" and "Credit Control Response" Messages, 
+defined in this specification.
 
 Credit information, both grants and status, is provided in new credit
 grant related data items. Each data item contains a value representing
@@ -94,9 +97,9 @@ count) on the window.
 ## Counts
 
 To account for in-flight packets, DLEP peers are required to keep per
-queue counts for traffic sent and received. When the DLEP peer managing
-a window issues a Credit Grant data item, the data item contains both 
-the increment (i.e., the number of octets that the window manager is 
+queue counts for traffic sent and received. When the Window Manager
+peer issues a Credit Grant data item, the data item contains both 
+the increment (i.e., the number of octets that the Window Manager is 
 authorizing to be sent), and the current receive count on the window. 
 
 The traffic sender, upon receiving the Credit Grant, can use the 
@@ -146,10 +149,10 @@ only to the data plane traffic. There are no default values for
 either the initial credit window or the credit increments.
 
 Credit controlled sessions MUST begin with the receiver on a 
-window issuing a Credit Control message, containing a Credit
-Grant data item, to the peer, The Credit Grant data item MUST
-have a, non-zero value as the increment, and a value for the 
-receive count for the queue.
+window (i.e., the Window Manager) issuing a Credit Control message, 
+containing a Credit Grant data item, to the peer, The Credit 
+Grant data item MUST have a non-zero value as the increment, 
+and a value for the receive count for the queue.
 
 Credit windows MAY be established in both directions (e.g., both MRW 
 and RRW), or in one direction only - for example, the MRW can be 
@@ -171,16 +174,18 @@ perceived infrequency of traffic to the destination, such that the credit
 scheme induces more overhead than is desired. 
 
 2. If the receiver supports use of credits for the destination, it MUST
-initialize the appropriate window value to zero, then apply the increment
+initialize the credit value for the window to zero, then apply the increment
 specified in the Credit Grant data item. The receiver of the request 
 MUST also set its current send count to the same value that is in the 
 received Credit Grant. Then, the receiver then MUST issue a corresponding 
 Credit Control Response Message with a Status data item with a status code 
-of 'Success'.
+of 'Success', and a Credit Window Status data item containing the 
+initialized values. 
 
-3. With the window count and credit values established, the window manager
-MUST issue a Credit Control Message with the Credit Window Start data item. 
-This completes the establishment of the window. 
+3. When the Window Manager receives the Credit Control Response Message 
+showing that count and credit values have been established, the Window
+Manager MUST then issue a Credit Control Message with the Credit Window 
+Start data item.  This completes the establishment of the window. 
 
 If credit-windowing initialization is successfully completed,
 Data plane traffic would then flow between the DLEP peers, with said peers
@@ -198,6 +203,43 @@ When the number of available credits to the destination reaches 0, the
 sender MUST stop sending data plane traffic to the destination, until 
 additional credits are granted by the receiver. 
 
+During normal operation, DLEP session peers MAY disagree about the number of 
+available credits. Operational credit mismatches can occur due to packets in
+transit on the wire, or sequencing of sending and receiving packets (e.g. 
+packets are sent prior to processing DLEP control information). DLEP session 
+peers SHOULD make every effort to keep credit counts in sync, and MAY use
+the Credit Window Status data items to maintain that synchronization. 
+The data items are informational only; they are used to inform the receiving peer 
+of the current credit counts for both the MRW and RRW, from the perspective of the sender. 
+
+This extension defines two Credit Window Status data items. The information 
+on available credits and send/receive counts MUST be provided from the 
+perspective of the originator (i.e., on a Modem Receive Window, or MRW, the 
+modem counts are used to propagate fields in the Receiver Window Status 
+data item; the DLEP router would supply its counts in the Sender Window Status).
+
+Upon receipt of a Credit Window Status data item, an implementation SHOULD 
+compare its own credit counts with that of the originator. If the receiver of 
+Credit Window Status detects that the local credit counts are not synchronized with
+the originator, the receiving implementation is free to employ various algorithms
+to re-establish close synchrnoization, such as:
+
+*  Allow the DLEP peer to completely exhaust its credits prior to re-supplying them via a Credit Grant Data Item, or
+*  Immediately attempt resynchronization using an additional Credit Grant, if applicable, or
+*  1. Issue a Credit Control Message with the Credit Window Stop data item to quiesce data plane traffic. 
+   2. Issue a Credit Control Message with a Credit Request data item. Use the response to the Credit Request to re-initialize the send/receive counts (using the count of the Window Manager), then
+   3. Issue a Credit Control Message with a Credit Window Start Data Item to restart data plane traffic on the queue index(es).
+*  Other re-synchronization algorithms as deemed appropriate. 
+
+If a DLEP message contains both the [Credit Grant](#cw_di_credit_grant) data item and 
+a Credit Window Status data item, implementations MUST first apply the 
+[Credit Grant](#cw_di_credit_grant) data item before comparing 
+the credit counts contained in Credit Window Status.
+
+It is RECOMMENDED that implementations issue a Credit Control Message with a 
+Credit Window Status data item at a configurable multiple of the DLEP Heartbeat
+timer, to serve as a continuing check on synchronization of the credit windows for 
+a destination.
 
 #  DLEP Messages for Credit-Window Extension {#credit_window_msgs}
 
@@ -217,7 +259,8 @@ with that MAC address.
 
 The Message Type value in the DLEP Message Header is set to TBA2.
 
-The message MUST contain a DLEP MAC Address Data Item.
+The message MUST contain a DLEP MAC Address Data Item. Additional 
+credit-related data items are added as needed. 
 
 ## Credit Control Response Message 
 
@@ -238,10 +281,10 @@ The credit-windowing extension introduces two additional DLEP status code:
 -------------------------------------------------------------------------
 Status Code   Value  Failure Mode  Reason
 ------------  -----  ------------  ---------------------------------------
-Credit Window  TBA2  Continue      Credit counts are out-of-sync between
+Credit Window  TBA4  Continue      Credit counts are out-of-sync between
 Out of Sync                        sender and receiver on the destination.
 
-Credit Use     TBA3  Continue      Credit counts cannot be used for the
+Credit Use     TBA5  Continue      Credit counts cannot be used for the
 Rejected                           destination.
 -------------------------------------------------------------------------
 
@@ -259,13 +302,19 @@ for synchronization purposes.
 -------------------------------------------------------------------------
 Type Code   Description
 ----------- -------------------------------------------------------------
-TBA4        [Queue Parameters](#cw_di_queue_parameters)
+TBA6        [Queue Parameters](#cw_di_queue_parameters)
 
-TBA5        [Credit Grant](#cw_di_credit_grant)
+TBA7        [Credit Grant](#cw_di_credit_grant)
 
-TBA6        [Credit Window Status](#cw_di_credit_status)
+TBA8        [Credit Window Start](#cw_di_credit_start)
 
-TBA7        [Credit Request](#cw_di_credit_req)
+TBA9        [Credit Window Stop](#cw_di_credit_stop)
+
+TBA10       [Receiver Credit Window Status](#cw_di_receiver_credit_status)
+
+TBA11       [Sender Credit Window Status](#cw_di_sender_credit_status)
+
+TBA12       [Credit Request](#cw_di_credit_req)
 -------------------------------------------------------------------------
 
 
@@ -313,7 +362,7 @@ The format of the Queue Parameters Data Item is:
        :                                ...            |  DS Field Qn  |
        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-   Data Item Type:  TBA4
+   Data Item Type:  TBA6
 
    Length:  Variable
 
@@ -416,26 +465,16 @@ The Credit Grant data item contains the following fields:
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     | Data Item Type                | Length                        |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |  Queue Index  |        Credit Increment                       |
+    |  Queue Index  |  Queue Index  |  Queue Index  |  Queue Index  |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |                Credit Increment (continued)                   |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |Credit         |        Receive Count                          |
-    |Increment      |                                               |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |               Receive Count (continued)                       |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |Receive        |
-    |Count          |
-    +-+-+-+-+-+-+-+-+
 
 Data Item Type:
-:    TBA5
+:    TBA7
 
 Length:
 :    Variable
 
-Credit Increment:
+Queue Index:
 :    A 64-bit unsigned integer representing the additional credits, in 
      octets, to be assigned to the credit window. 
 
@@ -455,90 +494,181 @@ condition  occurs, implementations MUST set the credit window to the maximum
 value contained in a 64-bit quantity (0xFFFFFFFFFFFFFFFF).
 
 
-## Credit Window Status    {#cw_di_credit_status}
+## Credit Window Start     {#cw_di_credit_start}
 
-During normal operation, DLEP session peers may disagree about the number of 
-available credits. Operational credit mismatches can occur due to packets in
-transit on the wire, or sequencing of sending and receiving packets (e.g. 
-packets are sent prior to processing DLEP control information). DLEP session 
-peers SHOULD make every effort to keep credit counts in sync, and implementations
-MAY use the Credit Window Status data item to maintain that synchronization. 
-This data item is informational only; it is used to inform the receiving peer 
-of the current credit counts for both the MRW and RRW, from the perspective of the sender. 
+After initialization of a credit window via a Credit Control Message with
+a Credit Grant, and receipt of a Credit Control Response Message with the
+response to Credit Grant, implementations begin the flow of data plane 
+traffic by issuing a Credit Control Message with the Credit Window Start
+data item. 
 
-Upon receipt of a Credit Window Status data item, an implementation SHOULD 
-compare its own credit counts with that of the originator. If the receiver of 
-Credit Window Status detects that the local credit counts are not synchronized with
-the originator, the receiving implementation is free to employ various algorithms
-to re-establish close synchrnoization, such as:
-
-*  Allow the DLEP peer to completely exhaust its credits prior to re-supplying them via a Credit Grant Data Item, or
-*  Immediately attempt resynchronization using an additional Credit Grant, if applicable, or
-*  Issue a DLEP Destination Down message, to clear credit counts on the session, and then re-establish the destination via a Destination Up or Destination Announce message. 
-*  Other re-synchronization algorithms as deemed appropriate. 
-
-Implementations issuing Destinaton Down due to credit count mismatches MUST supply 
-a DLEP Status item, with the status code of 'Credit Window Out of Sync', as defined 
-in this document. 
-
-If a DLEP message contains both the [Credit Grant](#cw_di_credit_grant) data item and 
-the [Credit Window Status](#cw_di_credit_status) data item, implementations MUST 
-first apply the [Credit Grant](#cw_di_credit_grant) data item before comparing 
-the credit counts contained in [Credit Window Status](#cw_di_credit_status).
-
-It is RECOMMENDED that implementations issue a DLEP Destination Update with a 
-Credit Window Status data item at a configurable multiple of the DLEP Heartbeat
-timer, to serve as a continuing check on synchronization of the credit windows for 
-a destination.
-
-The Credit Window Status data item contains the following fields:
+The Credit Window Start data item contains the following fields:
 
      0                   1                   2                   3
      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     | Data Item Type                | Length                        |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |                   Modem Receive Window Value                  :
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    :             Modem Receive Window Value (continued)            |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |                   Router Receive Window Value                 :
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    :             Router Receive Window Value (continued)           |
+    |  Queue Index  |  Queue Index  |  Queue Index  |  Queue Index  |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 Data Item Type:
-:    TBA6
+:    TBA8
 
 Length:
-:    16
+:    Variable
 
-Modem Receive Window Value:
-:    A 64-bit unsigned integer, indicating the current number of 
-     credits, in octets, available on the Modem Receive Window, 
-     for the destination referred to by the message.
+Queue Index:
+:    One or more 8-bit fields used to indicate a queue index defined
+     by a Queue Parameters Data Item. The special value of 255 indicates
+     that the window start applies to all queue indexes.
 
-Router Receive Window Value:
+
+## Credit Window Stop      {#cw_di_credit_stop}
+
+When a DLEP peer determines that data plane traffic on a credit window 
+should stop (or pause), the implementation MAY issue a Credit Control 
+Message containing the Credit Window Stop Data Item.
+
+The Credit Window Stop data item contains the following fields:
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    | Data Item Type                | Length                        |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |  Queue Index  |  Queue Index  |  Queue Index  |  Queue Index  |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+Data Item Type:
+:    TBA9
+
+Length:
+:    Variable
+
+Queue Index:
+:    One or more 8-bit fields used to indicate a queue index defined
+     by a Queue Parameters Data Item. The special value of 255 indicates
+     that the window start applies to all queue indexes.
+
+## Receiver Credit Window Status    {#cw_di_receiver_credit_status}
+
+The Receiver Credit Window Status data item is used by the Window 
+Manager (i.e., the receiver on a window) to show the Window Manager's
+perspecitve of the available credits, and the receive count for a 
+set (from 1 - N) of queue indexes. 
+
+The Receiver Credit Window Status data item contains the following fields:
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    | Data Item Type                | Length                        |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |  Queue Index  |     Available Credits Value                   :
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    :             Available Credits Value (continued)               |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    | ACV (cont).   |         Receive Count Value                   :
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    :                 Receive Count Value (continued)               |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    | RCV (cont).   |  Queue Index  | ...                           :
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    :                     ...                                       |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    :                     ...                                       |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    :                     ...                                       |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    :                     ...       |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+Data Item Type:
+:    TBA10
+
+Length:
+:    Variable
+
+Queue Index:
+:    An 8-bit field used to indicate a queue index defined by a 
+     Queue Parameters Data Item, The special value of 255 
+     indicates that the information in the data item applies to 
+     all queue indexes. 
+
+Available Credits Value:
 :    A 64-bit unsigned integer, indicating the current number of 
-     credits, in octets, available on the Router Receive Window,
-     for the destination referred to by the message.
+     credits, in octets, available on the given window.
+
+Receive Count Value:
+:    A 64-bit unsigned integer, indicating the current count of  
+     octets received on the window. 
+
+
+## Sender Credit Window Status    {#cw_di_sender_credit_status}
+
+The Sender Credit Window Status data item is used by the transmitting
+peer on a window (e.g., the router on an MRW)) to show the sender's
+perspecitve of the available credits, and the send count for a
+set (from 1 - N) of queue indexes.
+
+The Sender Credit Window Status data item contains the following fields:
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    | Data Item Type                | Length                        |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |  Queue Index  |     Available Credits Value                   :
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    :             Available Credits Value (continued)               |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    | ACV (cont).   |         Send Count Value                      :
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    :                 Send Count Value (continued)                  |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    | SCV (cont).   |  Queue Index  | ...                           :
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    :                     ...                                       |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    :                     ...                                       |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    :                     ...                                       |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    :                     ...       |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+Data Item Type:
+:    TBA11
+
+Length:
+:    Variable
+
+Queue Index:
+:    An 8-bit field used to indicate a queue index defined by a
+     Queue Parameters Data Item, The special value of 255
+     indicates that the information in the data item applies to
+     all queue indexes.
+
+Available Credits Value:
+:    A 64-bit unsigned integer, indicating the current number of
+     credits, in octets, available on the given window.
+
+Send Count Value:
+:    A 64-bit unsigned integer, indicating the current count of
+     octets sent on the window.
+
 
 
 ## Credit Request    {#cw_di_credit_req}
 
-The Credit Request data item MAY be sent from either DLEP participant, as
-a data item in a DLEP Destination Update message, or a Link Characteristics
-Request message, to indicate the desire for the partner to grant additional 
-credits in order for data transfer to proceed on the session. If the 
-corresponding DLEP Destination Up or Destination Announce message for this 
-session did not contain a Credit Grant data item, indicating that credits 
-are to be used on the session, then receipt of the Credit Request data item 
-MUST be considered as an error by the receiver, requiring a response message 
-that includes a Status Data Item with the code set to "Credit Window out of 
-Sync'. 
+The Credit Request data item MAY be sent to the Window Manager in a 
+Credit Window Control Message to indicate the desire for the partner 
+to grant additional credits in order for data transfer to proceed on 
+the session.
 
 If credits are supported on the destination, then the receiver of a Credit
-Request Data Item SHOULD issue a Destination Update message, with a Credit
+Request Data Item SHOULD issue a Credit Window Control Message, with a Credit
 Grant Data Item, giving the peer an increment of credits for the destination. 
 
 The Credit Request data item contains the following fields:
@@ -548,117 +678,22 @@ The Credit Request data item contains the following fields:
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     | Data Item Type                | Length                        |
     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    | Queue Index  |            ...                                 |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                           ...                 |  Queue Index  |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 Data Item Type:
-:    TBA7
+:    TBA12
 
 Length:
-:    0
+:    Variable
 
-#  Credit Data Item Use in DLEP Messages
-
-
-## DLEP Destination Up Message {#msg_dest_up_credits}
-
-If use of credits is desired for the destination, then the Destination Up
-message MUST contain one [Credit Grant](#cw_di_credit_grant) data item. The
-value of the credit increment is at the discretion of the implementation. 
-If use of credits is accepted by the receiver, the value in the Credit Grant 
-data item in the Destination Up message MUST be used as the initial value 
-for the appropriate window.
-
-If the Destination Up message does not contain the Credit Grant data item, 
-credits MUST NOT be used for that destination.
-
-## DLEP Destination Announce Message {#msg_dest_annc_credits}
-
-If use of credits is required for the destination, then the Destination
-Announce message MUST contain one [Credit Grant](#cw_di_credit_grant) data 
-item. The value of the credit increment is at the discretion of the 
-implementation. The receiver of the Destination Announce message MUST use 
-the value in Credit Grant as the initial value for the appropriate window.
-
-If the Destination Announce message does not contain the Credit Grant data 
-item, credits MUST NOT be used for that destination.
-
-## DLEP Destination Up Response Message {#msg_dest_up_rsp_credits}
-
-If the corresponding Destination Up message contained a [Credit Grant](#cw_di_credit_grant) data item,
-the Destination Up Response message MUST contain either:
-
-* a [Credit Grant](#cw_di_credit_grant) data item, to initialize the receiver's window, or
-* a Status Data Item, containing the 'Credit Use Rejected' status code. Optional text MAY be included with the Status Data Item to further clarify the reason for the rejection. 
-
-Likewise, if the corresponding Destination Up message did not contain a [Credit Grant](#cw_di_credit_grant) data item, 
-the receiver MUST conclude that credits are NOT to be used for the destination, and therefore, the 
-Destination Up Response message MUST NOT contain a [Credit Grant](#cw_di_credit_grant) data item. 
-
-The receiver of Destination Up Response MUST use the received Credit Grant
-value to initialize the appropriate window (e.g., the MRW value for routers, 
-the RRW value for modems). 
-
-When an implementation detects a mismatch in the presence or absence of 
-credit window data items between the DLEP Destination Up and Destination Up 
-Response messages (e.g, the Destination Up message was sent using credits but the 
-received Destination Up Response message does NOT include credits), the 
-implementation detecting the credit-use mismatch MUST terminate the 
-destination by issuing a Destination Down message with a status code of 'Credit
-Window Out of Sync', and continue processing on other DLEP destinations. 
-
-## DLEP Destination Announce Response Message {#msg_dest_annc_rsp_credits}
-
-If the corresponding Destination Announce message contained a [Credit Grant](#cw_di_credit_grant) data item,
-the Destination Announce Response message MUST contain either:
-
-* a [Credit Grant](#cw_di_credit_grant) data item, to initialize the receiver's window, or
-* a Status Data Item, containing the 'Credit Use Rejected' status code. Optional text MAY be included with the Status Data Item to further clarify the reason for the rejection 
-
-Likewise, if the corresponding Destination Announce message did not contain a [Credit Grant](#cw_di_credit_grant) data item, 
-the receiver MUST conclude that credits are NOT to be used for the destination, and therefore, the
-Destination Announce Response message MUST NOT contain a [Credit Grant](#cw_di_credit_grant) data item. 
-
-The receiver of Destination Announce Response MUST use the received Credit 
-Grant value to initialize the appropriate window (e.g., the MRW value for 
-routers, the RRW value for modems). 
-
-When an implementation detects a mismatch in the presence or absence of 
-credit window data items between the DLEP Destination Announce and Destination
-Announce Response messages (e.g, the Destination Announce message was sent 
-using credits but the received Destination Up Response message does NOT 
-include credits), the implementation detecting the credit-use mismatch 
-MUST terminate the destination by issuing a Destination Down message with 
-a status code of 'Credit Window Out of Sync', and continue processing on 
-other DLEP destinations. 
-
-
-## DLEP Destination Update Message {#msg_dest_update_credits}
-
-If the corresponding Destination Up or Destination Announce message contained 
-the Credit Grant data item, the Destination Update message MAY contain one of 
-each of the following data items:
-
-* [Credit Grant](#cw_di_credit_grant)
-* [Credit Window Status](#cw_di_credit_status)
-* [Credit Request](#cw_di_credit_req)
-
-DLEP peers supporting the extension MAY format and send a DLEP Destination Update
-message solely for the purposes of maintaining the credit windows. In cases where 
-a peer already has information requiring a Destination Update message, (e.g., a 
-change in Latency on the link), the credit data items MAY be included 
-in addition to that information. 
-
-##DLEP Link Characteristics Request Message {#msg_link_char_req_credits}
-
-If the corresponding Destination Up or Destination Announce message contained 
-the credit Grant data item, the Link Characteristics Request message MAY contain 
-the following data item:
-
-* [Credit Request](#cw_di_credit_req)
-
-DLEP peers supporting the extension MAY format and send a DLEP Link Characteristics
-Request message solely for the purposes of maintaining the credit windows. In cases
-where a peer already has information requiring a Link Characteristics Request message,
-the Credit Request data MAY be included in addition to that information.  
+Queue Index:
+:    An 8-bit field used to indicate a queue index defined by a
+     Queue Parameters Data Item, The special value of 255
+     indicates that the information in the data item applies to
+     all queue indexes.
 
 
 #  Security Considerations {#cw_security_considerations}
@@ -676,13 +711,17 @@ This section specifies requests to IANA.
 
 ## Registrations  {#cw_iana_registrations}
 
-This specification defines three (3) new entries in the repository entitled
+This specification defines seven (7) new entries in the repository entitled
 "Data Item Type Values for the Dynamic Link Exchange Protocol (DLEP)". Assignments
 from that registry are requested for:
 
+* Queue Parameters
+* Credit Window Start
+* Credit Window Stop
 * Credit Grant
 * Credit Request
-* Credit Window Status 
+* Receiver Credit Window Status 
+* Sender Credit Window Status
 
 The specification also defines an extension to the DLEP protocol. An assignment
 from the repository entitled "Extension Type Values for the Dynamic Link Exchange
@@ -701,5 +740,5 @@ Protocol (DLEP)" are requested for:
 
 The author would like to acknowledge and thank the members of the MANET 
 working group, who have provided valuable insight. Specifically, the author 
-would like to thank Lou Berger, David Wiggins, Justin Dean, Brian Amundson, 
-Rick Taylor, John Dowdell, Shawn Jury, and Darryl Satterwhite.
+would like to thank Justin Dean, Brian Amundson, Rick Taylor, John Dowdell, 
+Shawn Jury, and Darryl Satterwhite.
