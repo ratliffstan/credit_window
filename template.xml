@@ -99,7 +99,7 @@
 			<seriesInfo value="IETF draft" name="draft-ietf-manet-dlep-25"/>
 			</reference>
 		</references>
-		<references title=Informative References">
+		<references title="Informative References">
 			&RFC.2475;
 		</references>
     	&pandocBack;
